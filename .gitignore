@@ -1,0 +1,12 @@
+node_modules/
+third_party/
+tools/*.dll
+release/
+**/build/
+**/backups/
+*.dll
+*.exe
+*.pdb
+*.scdemod
+*.log
+.vs/

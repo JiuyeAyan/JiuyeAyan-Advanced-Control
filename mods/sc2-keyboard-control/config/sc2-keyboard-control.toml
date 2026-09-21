@@ -1,0 +1,16 @@
+# JiuyeAyan's Advanced Control
+# Build-time rules: rebuild and redistribute the mod after changing these values.
+# Embedded into the DLL; no external TOML is read or generated at runtime.
+# Choose exactly one active option: 1 or 2.
+
+[building_placement_policy]
+# Option 1: use a custom enemy unit/building exclusion radius.
+# Valid range: 1..127 logic tiles.
+active_option = 2
+option_1_enemy_exclusion_radius = 75
+
+# Option 2: during the opening, restrict local construction to the radius
+# around the local lord's first observed position. Enemy distance stays vanilla.
+# Radius range: 1..800. Duration range: 1..120 minutes.
+option_2_opening_lord_radius = 85
+option_2_duration_minutes = 5

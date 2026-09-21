@@ -1,0 +1,14 @@
+{
+  "id": "sc2-keyboard-control",
+  "name": "JiuyeAyan's Advanced Control",
+  "version": "0.2.22",
+  "author": "JiuyeAyan",
+  "description": "Complete Keyboard mapping, new keyboard control functions, compatible to JiuyeAyan's Navmesh",
+  "gameVersion": "Steam build 24816905 / Unity 2021.3.45f2 / Assembly-CSharp bc8b6a39",
+  "dependencies": [
+    {
+      "id": "bepinex-runtime",
+      "version": "5.4.23.5"
+    }
+  ]
+}

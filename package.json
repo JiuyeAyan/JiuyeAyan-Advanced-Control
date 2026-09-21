@@ -1,0 +1,8 @@
+{
+  "name": "jiuyeayan-advanced-control-source",
+  "version": "0.2.22",
+  "private": true,
+  "dependencies": {
+    "adm-zip": "0.6.0"
+  }
+}
