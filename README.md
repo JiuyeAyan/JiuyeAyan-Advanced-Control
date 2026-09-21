@@ -1,16 +1,18 @@
 # JiuyeAyan's Advanced Control
 
-《要塞：十字军东征 决定版》控制增强模组，源码版本 **0.2.22**。请使用 **SCDE Mod Manager** 加载，依赖 `bepinex-runtime 5.4.23.5`。
+A control enhancement mod for Stronghold: Crusader Definitive Edition, source version **0.2.22**. Please load it with**SCDE Mod Manager** ; it depends on `bepinex-runtime 5.4.23.5`。
 
-- 自定义键位、完整键盘设置界面、建筑/造兵/命令按键提示，中英文显示。
-- 编队与编屏；停止、巡逻；建筑分页和建造快捷键。
-- 六类兵营快速选择，未建造时快速放置；快捷造兵与统一集结点。
-- `Space` 选附近军队，`Ctrl+A` 选全地图己方军队（不含领主）。
-- `L` 选中并控制领主，双击定位；小地图命令适配传统/现代操作。
-- 新局移除单块初始储存区，让第一块可自由放置；读取存档或初始多块时保留。
-- 开局 5 个模拟分钟内，建筑限在领主初始位置 **85 格**内；之后恢复原版。
-- 暂停、速度、原生帧率/资源面板、展平场景；可选兼容攻击移动模组。
+**Script Extender：** 
+Not required as a dependency. Both modify the input flow, so SE script key interception may fail to intercept keys that this mod reads directly; the script's unselectable-unit rules may also affect select-all/formations. Coexistence is verified in-game, but future compatibility is not guaranteed.
 
-**Script Extender：** 不作为前置。双方修改输入流程，SE 脚本的按键拦截可能无法拦截本模组直接读取的按键；脚本的不可选单位规则也可能影响全选/编队。尚未完成共存实机验证，不保证完全兼容。
 
-仅含源码、语言和构建文件；不含游戏文件或编译产物。构建见 [BUILD.md](BUILD.md)。规则 TOML 仅在构建时嵌入，不作为玩家运行时配置。
+- Custom key bindings, a full keyboard settings interface, and key hints for buildings/unit production/commands, displayed in both Chinese and English.
+- Formations unit groups and screen groups; stop and patrol; building pagination and construction hotkeys.
+- Quick selection of six types of barracks, quick placement when not yet built; quick unit production and a unified rally point.
+- `Space` selects nearby troops; `Ctrl+A` selects all friendly troops on the map (excluding the Lord).
+- L selects and controls the Lord, double-click to locate; minimap commands adapted for both classic and modern controls.
+- Remove the single initial storage area so the first one can be placed freely; preserved when loading a save or when there are multiple initial ones.
+- Within the first 5 simulated minutes of a game, buildings are restricted to within 85 tiles of the Lord's initial position; afterward, the original behavior is restored.
+- Pause, speed, native frame rate/resource panel, flattened scene; optional compatibility with attack-move mods (unpublish).
+
+Contains only source code, language, and build files; no game files or compiled artifacts. See [BUILD.md](BUILD.md) for building. 
