@@ -1,8 +1,3 @@
-# JiuyeAyan's Advanced Control
-# Build-time rules: rebuild and redistribute the mod after changing these values.
-# Embedded into the DLL; no external TOML is read or generated at runtime.
-# Choose exactly one active option: 1 or 2.
-
 [building_placement_policy]
 # Option 1: use a custom enemy unit/building exclusion radius.
 # Valid range: 1..127 logic tiles.
