@@ -12,7 +12,7 @@ $payloadRoot = Join-Path $buildRoot 'payload'
 $pluginRoot = Join-Path $payloadRoot 'BepInEx\plugins\SC2KeyboardControl'
 $testRoot = Join-Path $buildRoot 'test'
 $releaseRoot = Join-Path $projectRoot 'release'
-$packagePath = Join-Path $releaseRoot "JiuyeAyan's Advanced Control-0.2.22.scdemod"
+$packagePath = Join-Path $releaseRoot "JiuyeAyan's Advanced Control-0.2.24.scdemod"
 $rulesPath = Join-Path $PSScriptRoot 'config\sc2-keyboard-control.toml'
 
 foreach ($required in @(
@@ -104,6 +104,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Packed rules verification failed' }
 
 & node (Join-Path $PSScriptRoot 'test\verify-0.2.21.cjs')
 if ($LASTEXITCODE -ne 0) { throw 'Language, lord-selection or settings source contract failed' }
+
+& node (Join-Path $PSScriptRoot 'test\verify-group-camera.cjs')
+if ($LASTEXITCODE -ne 0) { throw 'Control-group camera contract failed' }
 
 & node (Join-Path $PSScriptRoot 'package.js') $buildRoot $packagePath
 if ($LASTEXITCODE -ne 0) { throw "Mod packaging failed with exit code $LASTEXITCODE" }

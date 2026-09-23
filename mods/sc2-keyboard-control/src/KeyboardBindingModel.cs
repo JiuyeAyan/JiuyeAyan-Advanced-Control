@@ -4,6 +4,45 @@ using System.Globalization;
 
 namespace SCDEKeyboardControl
 {
+    internal struct RandomUnitCameraTarget
+    {
+        internal int Count;
+        internal int UnitId;
+        internal double X;
+        internal double Y;
+
+        internal void Consider(int unitId, double x, double y, Random random)
+        {
+            // Reservoir sampling: equal chance for each valid unit, no list allocation.
+            Count++;
+            if (random.Next(Count) != 0) return;
+            UnitId = unitId;
+            X = x;
+            Y = y;
+        }
+    }
+
+    internal static class GroupCameraPlan
+    {
+        internal static bool TryGetPosition(int state, int owner, int player,
+            int cellX, int cellY, int fineX, int fineY, int mapSize,
+            out double x, out double y)
+        {
+            x = y = 0;
+            // Nonzero native records also include non-live units; only state 2 is alive.
+            if (state != 2 || player <= 0 || owner != player || mapSize <= 0 || mapSize > 800)
+                return false;
+            int start = (800 - mapSize) / 2;
+            int end = start + mapSize;
+            if (cellX < start || cellX >= end || cellY < start || cellY >= end) return false;
+            x = fineX > 0 && fineX / 8.0 >= start && fineX / 8.0 < end
+                ? fineX / 8.0 : cellX + 0.5;
+            y = fineY > 0 && fineY / 8.0 >= start && fineY / 8.0 < end
+                ? fineY / 8.0 : cellY + 0.5;
+            return true;
+        }
+    }
+
     internal enum KeyboardAction
     {
         CameraLeft,

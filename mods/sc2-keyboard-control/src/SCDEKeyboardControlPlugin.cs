@@ -20,7 +20,7 @@ namespace SCDEKeyboardControl
     {
         public const string PluginGuid = "scde.sc2-keyboard-control";
         public const string PluginName = "JiuyeAyan's Advanced Control";
-        public const string PluginVersion = "0.2.22";
+        public const string PluginVersion = "0.2.24";
 
         private const string SupportedAssemblyHash =
             "bc8b6a395f01d48557db413600c8dd8d1fdfd3abdf97bfbbb68a3c56b04fd789";
@@ -166,6 +166,8 @@ namespace SCDEKeyboardControl
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<bool> _strictBuildCheck;
         private ConfigEntry<int> _bindingSchemaVersion;
+        private ConfigEntry<bool> _pushMapScrollingDefaultApplied;
+        private readonly System.Random _cameraRandom = new System.Random();
         private bool _compatibleBuild;
         private bool _optionsMenuVisible;
         private bool _settingsPageVisible;
@@ -213,6 +215,7 @@ namespace SCDEKeyboardControl
         private int _nativeSelectionPhase;
         private bool _nativeSelectionInputActive;
         private int[] _pendingSelectionVerification;
+        private bool _centerCameraAfterSelection;
         private int _selectionVerificationFrame = -1;
         private bool _suppressSelectionMouseInput;
         private volatile bool _pendingMapWideMilitarySelection;
@@ -317,6 +320,9 @@ namespace SCDEKeyboardControl
             _bindingSchemaVersion = _persistentConfig.Bind(
                 "General", "BindingSchemaVersion", 0,
                 L("Config_BindingSchema"));
+            _pushMapScrollingDefaultApplied = _persistentConfig.Bind(
+                "Migration", "PushMapScrollingDefaultApplied", false,
+                "Records the one-time native edge-scroll default; later player choices are preserved.");
 
             _bindings.ResetDefaults();
             BindConfiguration();
@@ -338,6 +344,27 @@ namespace SCDEKeyboardControl
             Logger.LogInfo(
                 "JiuyeAyan's Advanced Control " + PluginVersion + " loaded: managed language loading and menu-anchored settings; " +
                 "waiting for the live KeyManager.");
+        }
+
+        internal static void ApplyNativeControlDefaults()
+        {
+            SCDEKeyboardControlPlugin owner = _instance;
+            if (ReferenceEquals(owner, null) || !owner._compatibleBuild || !owner._enabled.Value ||
+                owner._pushMapScrollingDefaultApplied.Value || KeyManager.instance == null) return;
+            try
+            {
+                // Run only after the game has loaded its settings, never replace its other defaults.
+                ConfigSettings.Settings_PushMapScrolling = true;
+                // First-run/unreadable settings must not be written over before native setup/recovery.
+                if (ConfigSettings.SettingsFileExisted) ConfigSettings.SaveSettings(false);
+                owner._pushMapScrollingDefaultApplied.Value = true;
+                owner._persistentConfig.Save();
+                owner.Logger.LogInfo("Native push-map scrolling enabled once; future player choices are preserved.");
+            }
+            catch (Exception error)
+            {
+                owner.Logger.LogWarning("Native edge-scroll default could not be saved: " + error.Message);
+            }
         }
 
         private void LoadBuildingPlacementSettings()
@@ -1977,10 +2004,10 @@ namespace SCDEKeyboardControl
                 _lastGroupSelectionTimes[slot], now);
             _lastGroupSelectionTimes[slot] = centerCamera ? -1f : now;
             ApplyPersistentSelection(units);
-            if (centerCamera) TryCenterCameraOnUnits(units);
+            _centerCameraAfterSelection = centerCamera;
             Logger.LogInfo(string.Format(
                 centerCamera
-                    ? "Control group {0} selected through the synchronized native pipeline and centered after a double press: units={1}."
+                    ? "Control group {0} submitted; camera will center on confirmed selection after a double press: candidates={1}."
                     : "Control group {0} selected through the synchronized native pipeline: units={1}.",
                 GroupLabel(slot), units.Length));
         }
@@ -2403,6 +2430,12 @@ namespace SCDEKeyboardControl
         {
             try
             {
+                GameData gameData = GameData.Instance;
+                GameMap map = GameMap.instance;
+                EditorDirector director = EditorDirector.instance;
+                if (gameData == null || map == null || CameraControls2D.instance == null) return;
+                int player = director == null ? gameData.playerID : director.ActivePlayerID;
+                int mapSize = GameMap.tilemapSize;
                 string actualHash;
                 if (!HasSupportedNativeLayout(out actualHash)) return;
                 IntPtr module = GetModuleHandle("CrusaderDE.dll");
@@ -2411,11 +2444,7 @@ namespace SCDEKeyboardControl
                     : EngineThreadLockField.GetValue(null);
                 if (module == IntPtr.Zero || engineLock == null) return;
 
-                double minX = Double.MaxValue;
-                double maxX = Double.MinValue;
-                double minY = Double.MaxValue;
-                double maxY = Double.MinValue;
-                int found = 0;
+                RandomUnitCameraTarget target = new RandomUnitCameraTarget();
                 lock (engineLock)
                 {
                     IntPtr unitManager = IntPtr.Add(module, NativeUnitManagerRva);
@@ -2427,32 +2456,30 @@ namespace SCDEKeyboardControl
                         if (unitId <= 0 || unitId >= count) continue;
                         IntPtr unit = IntPtr.Add(
                             unitManager, unitId * NativeUnitStride);
-                        if (Marshal.ReadInt16(unit, NativeUnitActiveOffset) == 0) continue;
                         int cellX = Marshal.ReadInt16(unit, NativeUnitCellXOffset);
                         int cellY = Marshal.ReadInt16(unit, NativeUnitCellYOffset);
                         int fineX = Marshal.ReadInt16(unit, NativeUnitFineXOffset);
                         int fineY = Marshal.ReadInt16(unit, NativeUnitFineYOffset);
-                        double logicX = fineX > 0 ? fineX / 8.0 : cellX + 0.5;
-                        double logicY = fineY > 0 ? fineY / 8.0 : cellY + 0.5;
-                        minX = Math.Min(minX, logicX);
-                        maxX = Math.Max(maxX, logicX);
-                        minY = Math.Min(minY, logicY);
-                        maxY = Math.Max(maxY, logicY);
-                        found++;
+                        double logicX, logicY;
+                        if (!GroupCameraPlan.TryGetPosition(
+                                Marshal.ReadInt16(unit, NativeUnitActiveOffset),
+                                Marshal.ReadByte(unit, NativeUnitOwnerOffset), player,
+                                cellX, cellY, fineX, fineY, mapSize, out logicX, out logicY)) continue;
+                        target.Consider(unitId, logicX, logicY, _cameraRandom);
                     }
                 }
-                if (found == 0) return;
+                if (target.Count == 0) return;
 
-                GameData gameData = GameData.Instance;
-                if (gameData == null || GameMap.instance == null ||
-                    CameraControls2D.instance == null) return;
                 EngineInterface.PlayState cameraState = new EngineInterface.PlayState();
                 cameraState.camera_target_x = (short)Math.Max(
-                    1, Math.Min(Int16.MaxValue, (int)Math.Round((minX + maxX) * 0.5)));
+                    1, Math.Min(Int16.MaxValue, (int)Math.Round(target.X)));
                 cameraState.camera_target_y = (short)Math.Max(
-                    1, Math.Min(Int16.MaxValue, (int)Math.Round((minY + maxY) * 0.5)));
+                    1, Math.Min(Int16.MaxValue, (int)Math.Round(target.Y)));
                 cameraState.camera_target_z = -123;
                 gameData.SetCameraFromGameState(cameraState);
+                Logger.LogInfo(string.Format(
+                    "Control-group camera target: liveUnits={0}, unit={1}, logic=({2},{3}).",
+                    target.Count, target.UnitId, cameraState.camera_target_x, cameraState.camera_target_y));
             }
             catch (Exception error)
             {
@@ -2685,6 +2712,7 @@ namespace SCDEKeyboardControl
 
         private void BeginNativeSelectionSequence(int[] selection)
         {
+            _centerCameraAfterSelection = false;
             CancelBarracksSelectionFallback();
             ResetNativeSelectionVisualState();
             _nativeSelectionSequence = (int[])selection.Clone();
@@ -2763,12 +2791,15 @@ namespace SCDEKeyboardControl
                 Time.frameCount < _selectionVerificationFrame) return;
 
             int[] requested = _pendingSelectionVerification;
+            bool centerCamera = _centerCameraAfterSelection;
+            _centerCameraAfterSelection = false;
             _pendingSelectionVerification = null;
             _selectionVerificationFrame = -1;
             HashSet<int> requestedSet = new HashSet<int>(requested);
             HashSet<int> confirmedSet = new HashSet<int>(GetSelectedUnitIds());
             bool validSubset = NativeSelectionVerification.SelectedUnitsAreCandidateSubset(
                 requestedSet, confirmedSet);
+            if (centerCamera && validSubset) TryCenterCameraOnUnits(confirmedSet);
             Logger.LogInfo(string.Format(
                 "Native-filtered military selection snapshot: candidates={0}, selectedControllable={1}, validSubset={2}.",
                 requestedSet.Count, confirmedSet.Count, validSubset));
@@ -2781,6 +2812,7 @@ namespace SCDEKeyboardControl
 
         private void CancelNativeSelectionTransaction()
         {
+            _centerCameraAfterSelection = false;
             _pendingMapWideMilitarySelection = false;
             _nativeSelectionSequence = null;
             _nativeSelectionPhase = 0;
@@ -4457,6 +4489,16 @@ namespace SCDEKeyboardControl
         private static void Prefix()
         {
             SCDEKeyboardControlPlugin.ObserveFatControllerExitApp();
+        }
+    }
+
+    [HarmonyPatch(typeof(ConfigSettings), "LoadSettings")]
+    internal static class NativeControlDefaultsPatch
+    {
+        [HarmonyAfter("com.jiuyeayan.scde.multiplayer-compatibility")]
+        private static void Postfix()
+        {
+            SCDEKeyboardControlPlugin.ApplyNativeControlDefaults();
         }
     }
 

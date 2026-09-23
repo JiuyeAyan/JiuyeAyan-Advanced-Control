@@ -19,6 +19,45 @@ internal static class KeyboardBindingModelTests
 
     public static int Main(string[] args)
     {
+        Random cameraRandom = new Random(1234);
+        bool firstCluster = false, secondCluster = false;
+        int[] group = { 17, 42 };
+        for (int click = 0; click < 64; click++)
+        {
+            RandomUnitCameraTarget target = new RandomUnitCameraTarget();
+            Assert(target.Count == 0, "Empty groups must not produce a camera target.");
+            target.Consider(group[0], 210, 220, cameraRandom);
+            Assert(target.UnitId == 17 && target.X == 210 && target.Y == 220,
+                "A single valid member must always be the camera target.");
+            target.Consider(group[1], 610, 620, cameraRandom);
+            Assert(target.Count == 2 &&
+                (target.UnitId == 17 && target.X == 210 && target.Y == 220 ||
+                 target.UnitId == 42 && target.X == 610 && target.Y == 620),
+                "Split groups must center on an actual member, never the empty midpoint.");
+            firstCluster |= target.UnitId == 17;
+            secondCluster |= target.UnitId == 42;
+        }
+        Assert(firstCluster && secondCluster, "Repeated camera requests can choose either group member.");
+        Assert(group.SequenceEqual(new[] { 17, 42 }), "Camera sampling must not modify group membership.");
+        double cameraX, cameraY;
+        Assert(GroupCameraPlan.TryGetPosition(2, 1, 1, 300, 410, 2404, 3282, 400,
+            out cameraX, out cameraY) && cameraX == 300.5 && cameraY == 410.25,
+            "Camera must read native fine coordinates for a living local unit.");
+        foreach (int state in new[] { 0, 1, 3 })
+            Assert(!GroupCameraPlan.TryGetPosition(state, 1, 1, 300, 410, 2404, 3282, 400,
+                out cameraX, out cameraY), "Non-live records must not pull the camera away.");
+        Assert(!GroupCameraPlan.TryGetPosition(2, 2, 1, 300, 410, 2404, 3282, 400,
+            out cameraX, out cameraY), "Reused enemy records must not affect the group camera.");
+        Assert(!GroupCameraPlan.TryGetPosition(2, 1, 1, 199, 410, 2404, 3282, 400,
+            out cameraX, out cameraY), "Reject coordinates outside the active map offset.");
+        Assert(!GroupCameraPlan.TryGetPosition(2, 1, 1, 300, 600, 2404, 3282, 400,
+            out cameraX, out cameraY), "Active map upper bound is exclusive.");
+        Assert(GroupCameraPlan.TryGetPosition(2, 1, 1, 300, 410, 0, 32767, 400,
+            out cameraX, out cameraY) && cameraX == 300.5 && cameraY == 410.5,
+            "Invalid fine positions fall back to validated native cells, not remote targets.");
+        Assert(GroupCameraPlan.TryGetPosition(2, 1, 1, 50, 750, 404, 6004, 800,
+            out cameraX, out cameraY) && cameraX == 50.5 && cameraY == 750.5,
+            "Camera validation must support full-size maps.");
         BindingModel model = new BindingModel();
         model.ResetDefaults();
         var launcher = SettingsLauncherPlan.BesideMenu(1360f, 540f, 600f, 1920f, 1080f);

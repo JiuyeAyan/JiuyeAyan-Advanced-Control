@@ -12,7 +12,8 @@ function section(start, end) {
 // Byte-for-byte source guards for previously working selection behavior (0.2.20 baseline).
 for (const [a,b,expected] of [
   ['        private void SelectNearbyMilitary()', '        private bool TryReadNativeLiveUnitIds', 'a33e51999f30f662fd79df9ad6e685cf35a7746b10615877a12152b4af9e0972'],
-  ['        private void ApplyPersistentSelection', '        private void ResetNativeSelectionVisualState', 'b6be33a1939adca0f70b2f5afd68427b2f9cca202629891c85aef7fb8c1b5265']
+  // Camera-only completion hooks changed in 0.2.23; native input phases remain byte-for-byte unchanged.
+  ['        private void PrepareNativeSelectionInput', '        private void VerifyPendingSelection', '1f4665abdce87af9a30a1ade77f97e49f1dcf72650dbc87d5269951a1f5d569c']
 ]) assert.equal(crypto.createHash('sha256').update(section(a,b)).digest('hex'), expected);
 const lord = section('        private void SelectLord()', '        private void ApplyPersistentSelection');
 assert.doesNotMatch(lord, /ChimpsField|units.Values|Enums.KeyFunctions.Lord/);

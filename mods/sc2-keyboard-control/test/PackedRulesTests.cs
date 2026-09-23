@@ -58,6 +58,19 @@ internal static class PackedRulesTests
         }
         using (var game = AssemblyDefinition.ReadAssembly(args[2]))
         {
+            var settings = game.MainModule.Types.Single(t => t.Name == "ConfigSettings");
+            var pushSetter = settings.Methods.Single(m => m.Name == "set_Settings_PushMapScrolling");
+            if (!pushSetter.Body.Instructions.Any(i => i.Operand is FieldReference &&
+                ((FieldReference)i.Operand).Name == "settings_PushMapScrolling") ||
+                !pushSetter.Body.Instructions.Any(i => i.Operand is FieldReference &&
+                ((FieldReference)i.Operand).Name == "settingsDirty"))
+                throw new Exception("Native edge-scroll property changed; review settings migration.");
+            var startup = game.MainModule.Types.Single(t => t.Name == "FatControler")
+                .Methods.Single(m => m.Name == "Start");
+            if (!startup.Body.Instructions.Any(i => i.Operand is MethodReference &&
+                ((MethodReference)i.Operand).FullName == "System.Void ConfigSettings::LoadSettings()"))
+                throw new Exception("Native settings startup changed; review edge-scroll default timing.");
+            Console.WriteLine("NATIVE_EDGE_SCROLL_CONTRACT_OK native_property=true after_load=true");
             var radar = game.MainModule.Types.Single(t => t.Name == "FatControler")
                 .Methods.Single(m => m.Name == "RadarScrollMap");
             int heldReads = radar.Body.Instructions.Count(i => i.OpCode == Mono.Cecil.Cil.OpCodes.Ldfld &&
